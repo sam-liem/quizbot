@@ -24,6 +24,9 @@ vendor/
 .DS_Store
 Thumbs.db
 
+# Docs (generated plans)
+.docs/
+
 # Test
 coverage.out
 coverage.html
