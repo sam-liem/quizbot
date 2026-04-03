@@ -1,0 +1,26 @@
+id: "test-pack"
+name: "Test Pack"
+description: "A test quiz pack"
+version: "1.0.0"
+test_format:
+  question_count: 2
+  pass_mark_pct: 75.0
+  time_limit_sec: 300
+topics:
+  - id: "topic1"
+    name: "Topic One"
+  - id: "topic2"
+    name: "Topic Two"
+questions:
+  - id: "q001"
+    topic_id: "topic1"
+    text: "What is 2+2?"
+    choices: ["3", "4", "5", "6"]
+    correct_index: 1
+    explanation: "2+2 equals 4."
+  - id: "q002"
+    topic_id: "topic2"
+    text: "What color is the sky?"
+    choices: ["Red", "Green", "Blue", "Yellow"]
+    correct_index: 2
+    explanation: "The sky appears blue due to Rayleigh scattering."
