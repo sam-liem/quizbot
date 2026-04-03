@@ -1,5 +1,5 @@
 # Binaries
-quizbot
+/quizbot
 *.exe
 
 # Config (contains secrets)
