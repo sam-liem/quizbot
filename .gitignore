@@ -1,0 +1,29 @@
+# Binaries
+quizbot
+*.exe
+
+# Config (contains secrets)
+config.yaml
+
+# Database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Go
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage.out
+coverage.html
