@@ -13,10 +13,13 @@ import (
 // BuildQuestionKeyboard creates an inline keyboard with one row of A/B/C/D buttons.
 // Each button's callback data is the choice index as a string ("0", "1", "2", "3").
 func BuildQuestionKeyboard(choices []string) tgbotapi.InlineKeyboardMarkup {
-	labels := []string{"A", "B", "C", "D"}
+	labels := []string{"A", "B", "C", "D", "E", "F", "G", "H"}
 	buttons := make([]tgbotapi.InlineKeyboardButton, len(choices))
 	for i := range choices {
-		label := labels[i]
+		label := strconv.Itoa(i + 1)
+		if i < len(labels) {
+			label = labels[i]
+		}
 		data := strconv.Itoa(i)
 		buttons[i] = tgbotapi.InlineKeyboardButton{
 			Text:         label,
@@ -65,8 +68,6 @@ func FormatStats(readiness float64, breakdown []core.TopicSummary) string {
 	fmt.Fprintf(&sb, "Readiness: %.0f%%\n", readiness*100)
 	if len(breakdown) > 0 {
 		sb.WriteString("\nTopic Breakdown:\n")
-		labels := []string{"A", "B", "C", "D", "E", "F"}
-		_ = labels
 		for _, ts := range breakdown {
 			fmt.Fprintf(&sb, "  %s: %.0f%% (%d/%d)\n",
 				ts.TopicID,

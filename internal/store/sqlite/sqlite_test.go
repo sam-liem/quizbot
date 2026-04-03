@@ -186,7 +186,7 @@ func TestTopicStats_CRUD(t *testing.T) {
 		TopicID:         "topic-1",
 		TotalAttempts:   10,
 		CorrectCount:    7,
-		RollingAccuracy: 70.0,
+		RollingAccuracy: 0.7,
 		CurrentStreak:   3,
 		BestStreak:      5,
 	}

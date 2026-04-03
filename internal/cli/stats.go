@@ -24,7 +24,7 @@ func (a *App) RunStats(packID, topicID string, detailed bool, w io.Writer) error
 
 	readiness := core.CalculateReadiness(topicStats, *pack)
 	_, _ = fmt.Fprintf(w, "Pack: %s (%s)\n", pack.Name, pack.ID)
-	_, _ = fmt.Fprintf(w, "Readiness: %.1f%%\n", readiness)
+	_, _ = fmt.Fprintf(w, "Readiness: %.1f%%\n", readiness*100)
 
 	breakdown := core.GetTopicBreakdown(topicStats)
 	if len(breakdown) == 0 {
@@ -47,7 +47,7 @@ func (a *App) RunStats(packID, topicID string, detailed bool, w io.Writer) error
 		if name == "" {
 			name = ts.TopicID
 		}
-		_, _ = fmt.Fprintf(w, "  %s: %.1f%% (%d/%d)\n", name, ts.Accuracy, ts.CorrectCount, ts.TotalAttempts)
+		_, _ = fmt.Fprintf(w, "  %s: %.1f%% (%d/%d)\n", name, ts.Accuracy*100, ts.CorrectCount, ts.TotalAttempts)
 		if detailed {
 			_, _ = fmt.Fprintf(w, "    Streak: %d (best: %d)\n", ts.CurrentStreak, ts.BestStreak)
 		}

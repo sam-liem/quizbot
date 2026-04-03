@@ -391,7 +391,7 @@ func (e *QuizEngine) updateTopicStats(
 	}
 
 	if stats.TotalAttempts > 0 {
-		stats.RollingAccuracy = float64(stats.CorrectCount) / float64(stats.TotalAttempts) * 100.0
+		stats.RollingAccuracy = float64(stats.CorrectCount) / float64(stats.TotalAttempts)
 	}
 
 	return e.repo.UpdateTopicStats(ctx, stats)

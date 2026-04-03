@@ -71,7 +71,7 @@ func main() {
 	// 6. Create Scheduler.
 	schedulerCfg := core.SchedulerConfig{
 		UserID:       defaultUserID,
-		ChatID:       "",
+		ChatID:       cfg.TelegramChatID,
 		TickInterval: time.Minute,
 		SkipTimeout:  24 * time.Hour,
 	}

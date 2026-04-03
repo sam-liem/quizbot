@@ -160,6 +160,24 @@ func (s *Scheduler) tick(ctx context.Context, now time.Time, lastSentAt *time.Ti
 	s.mu.Unlock()
 
 	*lastSentAt = now
+
+	// 8. Check and deliver notifications.
+	s.deliverNotifications(ctx, now)
+}
+
+// deliverNotifications checks notification conditions and sends any triggered
+// notifications via the messenger.
+func (s *Scheduler) deliverNotifications(ctx context.Context, now time.Time) {
+	if s.notifier == nil {
+		return
+	}
+	notifications, err := s.notifier.CheckNotifications(ctx, s.cfg.UserID, now)
+	if err != nil {
+		return
+	}
+	for _, n := range notifications {
+		_ = s.messenger.SendNotification(s.cfg.ChatID, n)
+	}
 }
 
 // expireTimedOut marks timed-out pending questions as skipped (updates their

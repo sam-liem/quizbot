@@ -210,7 +210,7 @@ func TestStats(t *testing.T) {
 		TopicID:         "history",
 		TotalAttempts:   10,
 		CorrectCount:    8,
-		RollingAccuracy: 80.0,
+		RollingAccuracy: 0.8,
 		CurrentStreak:   3,
 		BestStreak:      5,
 	})
@@ -220,7 +220,7 @@ func TestStats(t *testing.T) {
 		TopicID:         "govt",
 		TotalAttempts:   5,
 		CorrectCount:    3,
-		RollingAccuracy: 60.0,
+		RollingAccuracy: 0.6,
 		CurrentStreak:   1,
 		BestStreak:      2,
 	})

@@ -10,6 +10,7 @@ import (
 // Config holds infrastructure configuration loaded from config.yaml.
 type Config struct {
 	TelegramBotToken string `yaml:"telegram_bot_token"`
+	TelegramChatID   string `yaml:"telegram_chat_id"`
 	SQLitePath       string `yaml:"sqlite_path"`
 	LLMAPIKey        string `yaml:"llm_api_key"`
 	ListenAddress    string `yaml:"listen_address"`
