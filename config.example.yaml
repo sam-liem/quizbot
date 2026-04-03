@@ -1,0 +1,9 @@
+# QuizBot configuration template
+# Copy to config.yaml and fill in your values.
+
+telegram_bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
+sqlite_path: "quizbot.db"
+llm_api_key: ""
+listen_address: ":8080"
+log_level: "info"
+encryption_key: "YOUR_32_BYTE_HEX_ENCRYPTION_KEY"
