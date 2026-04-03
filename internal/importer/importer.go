@@ -74,7 +74,7 @@ func ParseFile(path string) (*model.QuizPack, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening file %q: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	pack, err := parser.Parse(f)
 	if err != nil {

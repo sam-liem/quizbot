@@ -35,7 +35,7 @@ func (a *App) RunImport(filePath, format string, w io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("opening file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	pack, err := parser.Parse(f)
 	if err != nil {
@@ -50,6 +50,6 @@ func (a *App) RunImport(filePath, format string, w io.Writer) error {
 		return fmt.Errorf("saving pack: %w", err)
 	}
 
-	fmt.Fprintf(w, "Imported pack: %s (%s) - %d questions\n", pack.Name, pack.ID, len(pack.Questions))
+	_, _ = fmt.Fprintf(w, "Imported pack: %s (%s) - %d questions\n", pack.Name, pack.ID, len(pack.Questions))
 	return nil
 }

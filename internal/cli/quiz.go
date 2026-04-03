@@ -61,12 +61,12 @@ func (a *App) runInteractiveQuiz(ctx context.Context, sessionID string, r io.Rea
 			return fmt.Errorf("getting session status: %w", err)
 		}
 
-		fmt.Fprintf(w, "\nQ%d/%d: %s\n", questionNum, status.TotalQuestions, question.Text)
+		_, _ = fmt.Fprintf(w, "\nQ%d/%d: %s\n", questionNum, status.TotalQuestions, question.Text)
 		for i, choice := range question.Choices {
-			fmt.Fprintf(w, "  %d) %s\n", i+1, choice)
+			_, _ = fmt.Fprintf(w, "  %d) %s\n", i+1, choice)
 		}
 
-		fmt.Fprint(w, "Your answer: ")
+		_, _ = fmt.Fprint(w, "Your answer: ")
 
 		if !scanner.Scan() {
 			return fmt.Errorf("unexpected end of input")
@@ -75,7 +75,7 @@ func (a *App) runInteractiveQuiz(ctx context.Context, sessionID string, r io.Rea
 		input := strings.TrimSpace(scanner.Text())
 		answerNum, err := strconv.Atoi(input)
 		if err != nil || answerNum < 1 || answerNum > len(question.Choices) {
-			fmt.Fprintf(w, "Invalid input. Please enter a number between 1 and %d.\n", len(question.Choices))
+			_, _ = fmt.Fprintf(w, "Invalid input. Please enter a number between 1 and %d.\n", len(question.Choices))
 			questionNum-- // retry same question
 			continue
 		}
@@ -88,14 +88,14 @@ func (a *App) runInteractiveQuiz(ctx context.Context, sessionID string, r io.Rea
 		}
 
 		if result.Correct {
-			fmt.Fprintln(w, "Correct!")
+			_, _ = fmt.Fprintln(w, "Correct!")
 		} else {
 			correctChoice := question.Choices[result.CorrectIndex]
-			fmt.Fprintf(w, "Wrong. The correct answer is: %s\n", correctChoice)
+			_, _ = fmt.Fprintf(w, "Wrong. The correct answer is: %s\n", correctChoice)
 		}
 
 		if result.Explanation != "" {
-			fmt.Fprintf(w, "Explanation: %s\n", result.Explanation)
+			_, _ = fmt.Fprintf(w, "Explanation: %s\n", result.Explanation)
 		}
 	}
 
@@ -110,7 +110,7 @@ func (a *App) runInteractiveQuiz(ctx context.Context, sessionID string, r io.Rea
 		pct = float64(status.Correct) / float64(status.TotalQuestions) * 100.0
 	}
 
-	fmt.Fprintf(w, "\nScore: %d/%d (%.0f%%)\n", status.Correct, status.TotalQuestions, pct)
+	_, _ = fmt.Fprintf(w, "\nScore: %d/%d (%.0f%%)\n", status.Correct, status.TotalQuestions, pct)
 
 	return nil
 }

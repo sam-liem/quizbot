@@ -16,7 +16,7 @@ func (a *App) RunPacksList(w io.Writer) error {
 	}
 
 	if len(packs) == 0 {
-		fmt.Fprintln(w, "No quiz packs found.")
+		_, _ = fmt.Fprintln(w, "No quiz packs found.")
 		return nil
 	}
 
@@ -35,7 +35,7 @@ func (a *App) RunPacksList(w io.Writer) error {
 		if activeSet[p.ID] {
 			status = "* "
 		}
-		fmt.Fprintf(w, "%s%s - %s (%d questions)\n", status, p.ID, p.Name, len(p.Questions))
+		_, _ = fmt.Fprintf(w, "%s%s - %s (%d questions)\n", status, p.ID, p.Name, len(p.Questions))
 	}
 
 	return nil
@@ -58,7 +58,7 @@ func (a *App) RunPacksActivate(packID string, w io.Writer) error {
 	// Check if already active.
 	for _, id := range prefs.ActivePackIDs {
 		if id == packID {
-			fmt.Fprintf(w, "Pack %s is already active.\n", packID)
+			_, _ = fmt.Fprintf(w, "Pack %s is already active.\n", packID)
 			return nil
 		}
 	}
@@ -68,7 +68,7 @@ func (a *App) RunPacksActivate(packID string, w io.Writer) error {
 		return err
 	}
 
-	fmt.Fprintf(w, "Activated pack: %s\n", packID)
+	_, _ = fmt.Fprintf(w, "Activated pack: %s\n", packID)
 	return nil
 }
 
@@ -92,7 +92,7 @@ func (a *App) RunPacksDeactivate(packID string, w io.Writer) error {
 	}
 
 	if !found {
-		fmt.Fprintf(w, "Pack %s is not active.\n", packID)
+		_, _ = fmt.Fprintf(w, "Pack %s is not active.\n", packID)
 		return nil
 	}
 
@@ -101,6 +101,6 @@ func (a *App) RunPacksDeactivate(packID string, w io.Writer) error {
 		return err
 	}
 
-	fmt.Fprintf(w, "Deactivated pack: %s\n", packID)
+	_, _ = fmt.Fprintf(w, "Deactivated pack: %s\n", packID)
 	return nil
 }

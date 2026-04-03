@@ -153,7 +153,7 @@ func (d *DB) ListQuizPacks(ctx context.Context) ([]model.QuizPack, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listing quiz packs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var packs []model.QuizPack
 	for rows.Next() {
@@ -303,7 +303,7 @@ func (d *DB) ListTopicStats(ctx context.Context, userID, packID string) ([]model
 	if err != nil {
 		return nil, fmt.Errorf("listing topic stats: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var result []model.TopicStats
 	for rows.Next() {

@@ -35,18 +35,18 @@ func (a *App) RunConfigList(w io.Writer) error {
 		return err
 	}
 
-	fmt.Fprintf(w, "delivery_interval_min=%d\n", prefs.DeliveryIntervalMin)
-	fmt.Fprintf(w, "max_unanswered=%d\n", prefs.MaxUnanswered)
-	fmt.Fprintf(w, "focus_mode=%s\n", prefs.FocusMode)
-	fmt.Fprintf(w, "notify_inactivity=%t\n", prefs.NotifyInactivity)
-	fmt.Fprintf(w, "notify_inactivity_days=%d\n", prefs.NotifyInactivityDays)
-	fmt.Fprintf(w, "notify_weak_topic=%t\n", prefs.NotifyWeakTopic)
-	fmt.Fprintf(w, "notify_weak_topic_pct=%.1f\n", prefs.NotifyWeakTopicPct)
-	fmt.Fprintf(w, "notify_milestones=%t\n", prefs.NotifyMilestones)
-	fmt.Fprintf(w, "notify_readiness=%t\n", prefs.NotifyReadiness)
-	fmt.Fprintf(w, "notify_streak=%t\n", prefs.NotifyStreak)
-	fmt.Fprintf(w, "quiet_hours_start=%s\n", prefs.QuietHoursStart)
-	fmt.Fprintf(w, "quiet_hours_end=%s\n", prefs.QuietHoursEnd)
+	_, _ = fmt.Fprintf(w, "delivery_interval_min=%d\n", prefs.DeliveryIntervalMin)
+	_, _ = fmt.Fprintf(w, "max_unanswered=%d\n", prefs.MaxUnanswered)
+	_, _ = fmt.Fprintf(w, "focus_mode=%s\n", prefs.FocusMode)
+	_, _ = fmt.Fprintf(w, "notify_inactivity=%t\n", prefs.NotifyInactivity)
+	_, _ = fmt.Fprintf(w, "notify_inactivity_days=%d\n", prefs.NotifyInactivityDays)
+	_, _ = fmt.Fprintf(w, "notify_weak_topic=%t\n", prefs.NotifyWeakTopic)
+	_, _ = fmt.Fprintf(w, "notify_weak_topic_pct=%.1f\n", prefs.NotifyWeakTopicPct)
+	_, _ = fmt.Fprintf(w, "notify_milestones=%t\n", prefs.NotifyMilestones)
+	_, _ = fmt.Fprintf(w, "notify_readiness=%t\n", prefs.NotifyReadiness)
+	_, _ = fmt.Fprintf(w, "notify_streak=%t\n", prefs.NotifyStreak)
+	_, _ = fmt.Fprintf(w, "quiet_hours_start=%s\n", prefs.QuietHoursStart)
+	_, _ = fmt.Fprintf(w, "quiet_hours_end=%s\n", prefs.QuietHoursEnd)
 
 	return nil
 }
@@ -65,7 +65,7 @@ func (a *App) RunConfigGet(key string, w io.Writer) error {
 	}
 
 	val := getPreferenceValue(prefs, key)
-	fmt.Fprintf(w, "%s=%s\n", key, val)
+	_, _ = fmt.Fprintf(w, "%s=%s\n", key, val)
 	return nil
 }
 
@@ -90,7 +90,7 @@ func (a *App) RunConfigSet(key, value string, w io.Writer) error {
 		return err
 	}
 
-	fmt.Fprintf(w, "Set %s=%s\n", key, value)
+	_, _ = fmt.Fprintf(w, "Set %s=%s\n", key, value)
 	return nil
 }
 
