@@ -133,6 +133,20 @@ func (e *QuizEngine) StartQuiz(
 		return nil, fmt.Errorf("StartQuiz: saving session: %w", err)
 	}
 
+	// Create a corresponding StudySession (same ID) to record interaction history.
+	studySession := model.StudySession{
+		ID:            session.ID,
+		UserID:        userID,
+		PackID:        packID,
+		Mode:          mode,
+		StartedAt:     session.StartedAt,
+		QuestionCount: len(questionIDs),
+		Attempts:      []model.QuestionAttempt{},
+	}
+	if err := e.repo.CreateSession(ctx, studySession); err != nil {
+		return nil, fmt.Errorf("StartQuiz: creating study session: %w", err)
+	}
+
 	return &session, nil
 }
 
@@ -320,11 +334,49 @@ func (e *QuizEngine) SubmitAnswer(
 		return nil, fmt.Errorf("SubmitAnswer: updating topic stats: %w", err)
 	}
 
+	// Append attempt to the StudySession and update it.
+	if err := e.recordStudyAttempt(ctx, userID, sessionID, questionID, answerIndex, correct, session.Status); err != nil {
+		return nil, fmt.Errorf("SubmitAnswer: recording study attempt: %w", err)
+	}
+
 	return &SubmitAnswerResult{
 		Correct:      correct,
 		CorrectIndex: question.CorrectIndex,
 		Explanation:  question.Explanation,
 	}, nil
+}
+
+// recordStudyAttempt loads the StudySession, appends the new attempt, updates
+// aggregate counts, and sets EndedAt if the quiz session has completed.
+func (e *QuizEngine) recordStudyAttempt(
+	ctx context.Context,
+	userID, sessionID, questionID string,
+	answerIndex int,
+	correct bool,
+	quizStatus model.QuizSessionStatus,
+) error {
+	studySession, err := e.repo.GetSession(ctx, userID, sessionID)
+	if err != nil {
+		return fmt.Errorf("getting study session: %w", err)
+	}
+
+	now := time.Now()
+	attempt := model.QuestionAttempt{
+		QuestionID:  questionID,
+		AnswerIndex: answerIndex,
+		Correct:     correct,
+		AnsweredAt:  now,
+	}
+	studySession.Attempts = append(studySession.Attempts, attempt)
+	if correct {
+		studySession.CorrectCount++
+	}
+
+	if quizStatus == model.QuizSessionStatusCompleted || quizStatus == model.QuizSessionStatusAbandoned {
+		studySession.EndedAt = &now
+	}
+
+	return e.repo.UpdateSession(ctx, *studySession)
 }
 
 // updateQuestionState loads existing state (or creates a fresh one), applies
@@ -472,6 +524,17 @@ func (e *QuizEngine) AbandonSession(ctx context.Context, userID, sessionID strin
 	session.Status = model.QuizSessionStatusAbandoned
 	if err := e.repo.SaveQuizSession(ctx, *session); err != nil {
 		return fmt.Errorf("AbandonSession: saving session: %w", err)
+	}
+
+	// Set EndedAt on the StudySession.
+	studySession, err := e.repo.GetSession(ctx, userID, sessionID)
+	if err != nil {
+		return fmt.Errorf("AbandonSession: getting study session: %w", err)
+	}
+	now := time.Now()
+	studySession.EndedAt = &now
+	if err := e.repo.UpdateSession(ctx, *studySession); err != nil {
+		return fmt.Errorf("AbandonSession: updating study session: %w", err)
 	}
 
 	return nil

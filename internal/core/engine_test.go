@@ -410,6 +410,63 @@ func TestAbandonSession_NotFound(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// --- StudySession logging ---
+
+func TestSubmitAnswer_CreatesStudySession(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+
+	session, err := engine.StartQuiz(ctx, testUserID, testPackID, model.SessionModeMock, core.QuizOptions{})
+	require.NoError(t, err)
+
+	pack, err := repo.GetQuizPack(ctx, testPackID)
+	require.NoError(t, err)
+
+	firstQID := session.QuestionIDs[0]
+	var correctIndex int
+	for _, q := range pack.Questions {
+		if q.ID == firstQID {
+			correctIndex = q.CorrectIndex
+			break
+		}
+	}
+
+	_, err = engine.SubmitAnswer(ctx, testUserID, session.ID, firstQID, correctIndex)
+	require.NoError(t, err)
+
+	studySession, err := repo.GetSession(ctx, testUserID, session.ID)
+	require.NoError(t, err)
+	require.NotNil(t, studySession, "a StudySession should exist after submitting an answer")
+
+	assert.Equal(t, session.ID, studySession.ID)
+	assert.Equal(t, testUserID, studySession.UserID)
+	assert.Equal(t, testPackID, studySession.PackID)
+	assert.Equal(t, session.Mode, studySession.Mode)
+	assert.Len(t, studySession.Attempts, 1)
+	assert.Equal(t, firstQID, studySession.Attempts[0].QuestionID)
+	assert.Equal(t, correctIndex, studySession.Attempts[0].AnswerIndex)
+	assert.True(t, studySession.Attempts[0].Correct)
+	assert.Equal(t, 1, studySession.CorrectCount)
+	assert.Nil(t, studySession.EndedAt, "EndedAt should be nil while session is still in_progress")
+}
+
+func TestAbandonSession_EndsStudySession(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+
+	session, err := engine.StartQuiz(ctx, testUserID, testPackID, model.SessionModeMock, core.QuizOptions{})
+	require.NoError(t, err)
+
+	err = engine.AbandonSession(ctx, testUserID, session.ID)
+	require.NoError(t, err)
+
+	studySession, err := repo.GetSession(ctx, testUserID, session.ID)
+	require.NoError(t, err)
+	require.NotNil(t, studySession, "a StudySession should exist after abandoning")
+
+	assert.NotNil(t, studySession.EndedAt, "EndedAt should be set after abandoning a session")
+}
+
 // --- Spaced Repetition Priority ---
 
 func TestPracticeMode_SpacedRepetitionPriority(t *testing.T) {
