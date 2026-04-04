@@ -445,3 +445,200 @@ func TestUserIsolation_QuestionState(t *testing.T) {
 	assert.InDelta(t, 1.3, got2.EaseFactor, 0.001)
 	assert.Equal(t, model.AnswerResultWrong, got2.LastResult)
 }
+
+// ---- ListQuestionStates tests ----
+
+func TestListQuestionStates_FilterByPack(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Three states in pack-1, one in pack-2.
+	states := []model.QuestionState{
+		{
+			UserID: "user-1", PackID: "pack-1", QuestionID: "q-1",
+			EaseFactor: 2.5, IntervalDays: 1.0, RepetitionCount: 1,
+			NextReviewAt:   now.Add(24 * time.Hour),
+			LastResult:     model.AnswerResultCorrect,
+			LastReviewedAt: now.Add(-2 * time.Hour),
+		},
+		{
+			UserID: "user-1", PackID: "pack-1", QuestionID: "q-2",
+			EaseFactor: 1.8, IntervalDays: 0.5, RepetitionCount: 3,
+			NextReviewAt:   now.Add(12 * time.Hour),
+			LastResult:     model.AnswerResultWrong,
+			LastReviewedAt: now.Add(-1 * time.Hour),
+		},
+		{
+			UserID: "user-1", PackID: "pack-1", QuestionID: "q-3",
+			EaseFactor: 2.1, IntervalDays: 2.0, RepetitionCount: 2,
+			NextReviewAt:   now.Add(48 * time.Hour),
+			LastResult:     model.AnswerResultCorrect,
+			LastReviewedAt: now,
+		},
+		{
+			UserID: "user-1", PackID: "pack-2", QuestionID: "q-1",
+			EaseFactor: 2.5, IntervalDays: 1.0, RepetitionCount: 1,
+			NextReviewAt:   now.Add(24 * time.Hour),
+			LastResult:     model.AnswerResultCorrect,
+			LastReviewedAt: now,
+		},
+	}
+
+	for _, s := range states {
+		require.NoError(t, db.UpdateQuestionState(ctx, s))
+	}
+
+	got, err := db.ListQuestionStates(ctx, "user-1", model.QuestionHistoryFilter{
+		PackID: "pack-1",
+	})
+	require.NoError(t, err)
+	assert.Len(t, got, 3, "should return only pack-1 states")
+
+	for _, s := range got {
+		assert.Equal(t, "pack-1", s.PackID)
+	}
+}
+
+func TestListQuestionStates_FilterByResult(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	states := []model.QuestionState{
+		{
+			UserID: "user-1", PackID: "pack-1", QuestionID: "q-1",
+			EaseFactor: 2.5, IntervalDays: 1.0, RepetitionCount: 1,
+			NextReviewAt: now.Add(24 * time.Hour), LastResult: model.AnswerResultCorrect,
+			LastReviewedAt: now,
+		},
+		{
+			UserID: "user-1", PackID: "pack-1", QuestionID: "q-2",
+			EaseFactor: 1.8, IntervalDays: 0.5, RepetitionCount: 3,
+			NextReviewAt: now.Add(12 * time.Hour), LastResult: model.AnswerResultWrong,
+			LastReviewedAt: now,
+		},
+		{
+			UserID: "user-1", PackID: "pack-1", QuestionID: "q-3",
+			EaseFactor: 1.3, IntervalDays: 0.25, RepetitionCount: 5,
+			NextReviewAt: now.Add(6 * time.Hour), LastResult: model.AnswerResultWrong,
+			LastReviewedAt: now,
+		},
+	}
+
+	for _, s := range states {
+		require.NoError(t, db.UpdateQuestionState(ctx, s))
+	}
+
+	// Filter to wrong only.
+	wrong, err := db.ListQuestionStates(ctx, "user-1", model.QuestionHistoryFilter{
+		PackID: "pack-1",
+		Result: model.AnswerResultWrong,
+	})
+	require.NoError(t, err)
+	assert.Len(t, wrong, 2)
+	for _, s := range wrong {
+		assert.Equal(t, model.AnswerResultWrong, s.LastResult)
+	}
+
+	// Filter to correct only.
+	correct, err := db.ListQuestionStates(ctx, "user-1", model.QuestionHistoryFilter{
+		PackID: "pack-1",
+		Result: model.AnswerResultCorrect,
+	})
+	require.NoError(t, err)
+	assert.Len(t, correct, 1)
+	assert.Equal(t, "q-1", correct[0].QuestionID)
+}
+
+func TestListQuestionStates_SortByNextReview(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// q-1 has the furthest next review, q-3 the nearest.
+	states := []model.QuestionState{
+		{
+			UserID: "user-1", PackID: "pack-1", QuestionID: "q-1",
+			EaseFactor: 2.5, IntervalDays: 3.0, RepetitionCount: 3,
+			NextReviewAt: now.Add(72 * time.Hour), LastResult: model.AnswerResultCorrect,
+			LastReviewedAt: now,
+		},
+		{
+			UserID: "user-1", PackID: "pack-1", QuestionID: "q-2",
+			EaseFactor: 2.0, IntervalDays: 2.0, RepetitionCount: 2,
+			NextReviewAt: now.Add(48 * time.Hour), LastResult: model.AnswerResultCorrect,
+			LastReviewedAt: now,
+		},
+		{
+			UserID: "user-1", PackID: "pack-1", QuestionID: "q-3",
+			EaseFactor: 1.3, IntervalDays: 1.0, RepetitionCount: 1,
+			NextReviewAt: now.Add(24 * time.Hour), LastResult: model.AnswerResultWrong,
+			LastReviewedAt: now,
+		},
+	}
+
+	for _, s := range states {
+		require.NoError(t, db.UpdateQuestionState(ctx, s))
+	}
+
+	// Ascending: nearest next review first.
+	asc, err := db.ListQuestionStates(ctx, "user-1", model.QuestionHistoryFilter{
+		PackID:   "pack-1",
+		SortBy:   "next_review",
+		SortDesc: false,
+	})
+	require.NoError(t, err)
+	require.Len(t, asc, 3)
+	assert.Equal(t, "q-3", asc[0].QuestionID, "nearest review should be first")
+	assert.Equal(t, "q-2", asc[1].QuestionID)
+	assert.Equal(t, "q-1", asc[2].QuestionID)
+
+	// Descending: furthest next review first.
+	desc, err := db.ListQuestionStates(ctx, "user-1", model.QuestionHistoryFilter{
+		PackID:   "pack-1",
+		SortBy:   "next_review",
+		SortDesc: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, desc, 3)
+	assert.Equal(t, "q-1", desc[0].QuestionID, "furthest review should be first")
+	assert.Equal(t, "q-2", desc[1].QuestionID)
+	assert.Equal(t, "q-3", desc[2].QuestionID)
+}
+
+func TestListQuestionStates_IsolatedByUser(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	s1 := model.QuestionState{
+		UserID: "user-1", PackID: "pack-1", QuestionID: "q-1",
+		EaseFactor: 2.5, IntervalDays: 1.0, RepetitionCount: 1,
+		NextReviewAt: now.Add(24 * time.Hour), LastResult: model.AnswerResultCorrect,
+		LastReviewedAt: now,
+	}
+	s2 := model.QuestionState{
+		UserID: "user-2", PackID: "pack-1", QuestionID: "q-1",
+		EaseFactor: 1.3, IntervalDays: 0.5, RepetitionCount: 2,
+		NextReviewAt: now.Add(12 * time.Hour), LastResult: model.AnswerResultWrong,
+		LastReviewedAt: now,
+	}
+
+	require.NoError(t, db.UpdateQuestionState(ctx, s1))
+	require.NoError(t, db.UpdateQuestionState(ctx, s2))
+
+	list1, err := db.ListQuestionStates(ctx, "user-1", model.QuestionHistoryFilter{PackID: "pack-1"})
+	require.NoError(t, err)
+	assert.Len(t, list1, 1)
+	assert.Equal(t, "user-1", list1[0].UserID)
+
+	list2, err := db.ListQuestionStates(ctx, "user-2", model.QuestionHistoryFilter{PackID: "pack-1"})
+	require.NoError(t, err)
+	assert.Len(t, list2, 1)
+	assert.Equal(t, "user-2", list2[0].UserID)
+}
