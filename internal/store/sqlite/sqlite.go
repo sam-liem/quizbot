@@ -148,7 +148,7 @@ func (d *DB) GetQuizPack(ctx context.Context, packID string) (*model.QuizPack, e
 	return &pack, nil
 }
 
-func (d *DB) ListQuizPacks(ctx context.Context) ([]model.QuizPack, error) {
+func (d *DB) ListQuizPacks(ctx context.Context, _ string) ([]model.QuizPack, error) {
 	rows, err := d.db.QueryContext(ctx, `SELECT data FROM quiz_packs ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("listing quiz packs: %w", err)

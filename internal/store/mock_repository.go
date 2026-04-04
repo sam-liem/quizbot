@@ -68,7 +68,7 @@ func (m *MockRepository) GetQuizPack(_ context.Context, packID string) (*model.Q
 	return &pack, nil
 }
 
-func (m *MockRepository) ListQuizPacks(_ context.Context) ([]model.QuizPack, error) {
+func (m *MockRepository) ListQuizPacks(_ context.Context, _ string) ([]model.QuizPack, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	packs := make([]model.QuizPack, 0, len(m.QuizPacks))

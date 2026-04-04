@@ -10,7 +10,7 @@ import (
 func (a *App) RunPacksList(w io.Writer) error {
 	ctx := context.Background()
 
-	packs, err := a.repo.ListQuizPacks(ctx)
+	packs, err := a.repo.ListQuizPacks(ctx, a.userID)
 	if err != nil {
 		return fmt.Errorf("listing packs: %w", err)
 	}
