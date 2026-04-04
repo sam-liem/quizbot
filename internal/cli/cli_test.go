@@ -294,6 +294,24 @@ questions:
 	assert.Len(t, pack.Questions, 1)
 }
 
+func TestImport_PathTraversal(t *testing.T) {
+	app, _ := newTestApp(false)
+	var buf bytes.Buffer
+
+	err := app.RunImport("../../etc/passwd", "", &buf)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "path traversal")
+}
+
+func TestImport_NonexistentFile(t *testing.T) {
+	app, _ := newTestApp(false)
+	var buf bytes.Buffer
+
+	err := app.RunImport("/tmp/does-not-exist-quizbot-test.yaml", "", &buf)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
 // --- Quiz tests ---
 
 func TestQuizStart(t *testing.T) {
