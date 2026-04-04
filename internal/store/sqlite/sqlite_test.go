@@ -101,7 +101,7 @@ func TestListQuizPacks(t *testing.T) {
 	require.NoError(t, db.SaveQuizPack(ctx, pack1))
 	require.NoError(t, db.SaveQuizPack(ctx, pack2))
 
-	packs, err := db.ListQuizPacks(ctx)
+	packs, err := db.ListQuizPacks(ctx, "test-user")
 	require.NoError(t, err)
 	assert.Len(t, packs, 2)
 

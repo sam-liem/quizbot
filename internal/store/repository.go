@@ -11,11 +11,12 @@ type Repository interface {
 	// Quiz packs
 	SaveQuizPack(ctx context.Context, pack model.QuizPack) error
 	GetQuizPack(ctx context.Context, packID string) (*model.QuizPack, error)
-	ListQuizPacks(ctx context.Context) ([]model.QuizPack, error)
+	ListQuizPacks(ctx context.Context, userID string) ([]model.QuizPack, error)
 
 	// Question state (spaced repetition)
 	GetQuestionState(ctx context.Context, userID, packID, questionID string) (*model.QuestionState, error)
 	UpdateQuestionState(ctx context.Context, state model.QuestionState) error
+	ListQuestionStates(ctx context.Context, userID string, filter model.QuestionHistoryFilter) ([]model.QuestionState, error)
 
 	// Topic stats
 	GetTopicStats(ctx context.Context, userID, packID, topicID string) (*model.TopicStats, error)
