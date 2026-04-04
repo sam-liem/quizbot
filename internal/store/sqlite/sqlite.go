@@ -540,6 +540,78 @@ func (d *DB) GetQuizSession(ctx context.Context, userID, sessionID string) (*mod
 	}, nil
 }
 
+// ListQuizSessions returns all quiz sessions for the given user with the given status,
+// ordered by started_at DESC (most recent first).
+func (d *DB) ListQuizSessions(ctx context.Context, userID string, status model.QuizSessionStatus) ([]model.QuizSession, error) {
+	rows, err := d.db.QueryContext(ctx, `
+		SELECT id, user_id, pack_id, mode, question_ids, current_index,
+		       answers, started_at, time_limit_sec, status
+		FROM quiz_sessions
+		WHERE user_id = ? AND status = ?
+		ORDER BY started_at DESC`,
+		userID, string(status),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing quiz sessions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var sessions []model.QuizSession
+	for rows.Next() {
+		var (
+			id              string
+			uid             string
+			packID          string
+			mode            string
+			questionIDsJSON string
+			currentIndex    int
+			answersJSON     string
+			startedAt       string
+			timeLimitSec    int
+			st              string
+		)
+		if err = rows.Scan(&id, &uid, &packID, &mode, &questionIDsJSON, &currentIndex,
+			&answersJSON, &startedAt, &timeLimitSec, &st); err != nil {
+			return nil, fmt.Errorf("scanning quiz session row: %w", err)
+		}
+
+		started, err := parseTime(startedAt)
+		if err != nil {
+			return nil, fmt.Errorf("parsing started_at: %w", err)
+		}
+
+		var questionIDs []string
+		if err = unmarshalJSON(questionIDsJSON, &questionIDs); err != nil {
+			return nil, fmt.Errorf("unmarshalling question_ids: %w", err)
+		}
+
+		var answers map[string]int
+		if err = unmarshalJSON(answersJSON, &answers); err != nil {
+			return nil, fmt.Errorf("unmarshalling answers: %w", err)
+		}
+		if answers == nil {
+			answers = map[string]int{}
+		}
+
+		sessions = append(sessions, model.QuizSession{
+			ID:           id,
+			UserID:       uid,
+			PackID:       packID,
+			Mode:         model.SessionMode(mode),
+			QuestionIDs:  questionIDs,
+			CurrentIndex: currentIndex,
+			Answers:      answers,
+			StartedAt:    started,
+			TimeLimitSec: timeLimitSec,
+			Status:       model.QuizSessionStatus(st),
+		})
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating quiz session rows: %w", err)
+	}
+	return sessions, nil
+}
+
 // ---- User Preferences ----
 
 func (d *DB) GetPreferences(ctx context.Context, userID string) (*model.UserPreferences, error) {

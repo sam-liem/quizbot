@@ -445,3 +445,119 @@ func TestUserIsolation_QuestionState(t *testing.T) {
 	assert.InDelta(t, 1.3, got2.EaseFactor, 0.001)
 	assert.Equal(t, model.AnswerResultWrong, got2.LastResult)
 }
+
+// ---- ListQuizSessions tests ----
+
+func TestListQuizSessions(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Session 1: in_progress, started 2 hours ago
+	qs1 := model.QuizSession{
+		ID:           "qs-1",
+		UserID:       "user-1",
+		PackID:       "pack-1",
+		Mode:         model.SessionModeMock,
+		QuestionIDs:  []string{"q-1", "q-2"},
+		CurrentIndex: 0,
+		Answers:      map[string]int{},
+		StartedAt:    now.Add(-2 * time.Hour),
+		TimeLimitSec: 2700,
+		Status:       model.QuizSessionStatusInProgress,
+	}
+
+	// Session 2: completed, started 1 hour ago
+	qs2 := model.QuizSession{
+		ID:           "qs-2",
+		UserID:       "user-1",
+		PackID:       "pack-1",
+		Mode:         model.SessionModeMock,
+		QuestionIDs:  []string{"q-1", "q-2"},
+		CurrentIndex: 2,
+		Answers:      map[string]int{"q-1": 0, "q-2": 1},
+		StartedAt:    now.Add(-1 * time.Hour),
+		TimeLimitSec: 2700,
+		Status:       model.QuizSessionStatusCompleted,
+	}
+
+	// Session 3: in_progress, most recent (started 30 minutes ago)
+	qs3 := model.QuizSession{
+		ID:           "qs-3",
+		UserID:       "user-1",
+		PackID:       "pack-1",
+		Mode:         model.SessionModePractice,
+		QuestionIDs:  []string{"q-1"},
+		CurrentIndex: 0,
+		Answers:      map[string]int{},
+		StartedAt:    now.Add(-30 * time.Minute),
+		TimeLimitSec: 0,
+		Status:       model.QuizSessionStatusInProgress,
+	}
+
+	require.NoError(t, db.SaveQuizSession(ctx, qs1))
+	require.NoError(t, db.SaveQuizSession(ctx, qs2))
+	require.NoError(t, db.SaveQuizSession(ctx, qs3))
+
+	// List in_progress sessions — should return qs3 first (most recent), then qs1.
+	inProgress, err := db.ListQuizSessions(ctx, "user-1", model.QuizSessionStatusInProgress)
+	require.NoError(t, err)
+	assert.Len(t, inProgress, 2, "expected 2 in_progress sessions")
+	assert.Equal(t, "qs-3", inProgress[0].ID, "most recent in_progress session should be first")
+	assert.Equal(t, "qs-1", inProgress[1].ID)
+	for _, s := range inProgress {
+		assert.Equal(t, model.QuizSessionStatusInProgress, s.Status)
+	}
+
+	// List completed sessions — should return only qs2.
+	completed, err := db.ListQuizSessions(ctx, "user-1", model.QuizSessionStatusCompleted)
+	require.NoError(t, err)
+	assert.Len(t, completed, 1, "expected 1 completed session")
+	assert.Equal(t, "qs-2", completed[0].ID)
+	assert.Equal(t, model.QuizSessionStatusCompleted, completed[0].Status)
+}
+
+func TestListQuizSessions_EmptyResult(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	sessions, err := db.ListQuizSessions(ctx, "user-1", model.QuizSessionStatusInProgress)
+	require.NoError(t, err)
+	assert.Empty(t, sessions)
+}
+
+func TestListQuizSessions_UserIsolation(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	qs1 := model.QuizSession{
+		ID: "qs-u1", UserID: "user-1", PackID: "pack-1",
+		Mode: model.SessionModeMock, QuestionIDs: []string{"q-1"},
+		CurrentIndex: 0, Answers: map[string]int{},
+		StartedAt: now, TimeLimitSec: 2700,
+		Status: model.QuizSessionStatusInProgress,
+	}
+	qs2 := model.QuizSession{
+		ID: "qs-u2", UserID: "user-2", PackID: "pack-1",
+		Mode: model.SessionModeMock, QuestionIDs: []string{"q-1"},
+		CurrentIndex: 0, Answers: map[string]int{},
+		StartedAt: now, TimeLimitSec: 2700,
+		Status: model.QuizSessionStatusInProgress,
+	}
+
+	require.NoError(t, db.SaveQuizSession(ctx, qs1))
+	require.NoError(t, db.SaveQuizSession(ctx, qs2))
+
+	list1, err := db.ListQuizSessions(ctx, "user-1", model.QuizSessionStatusInProgress)
+	require.NoError(t, err)
+	require.Len(t, list1, 1)
+	assert.Equal(t, "user-1", list1[0].UserID)
+
+	list2, err := db.ListQuizSessions(ctx, "user-2", model.QuizSessionStatusInProgress)
+	require.NoError(t, err)
+	require.Len(t, list2, 1)
+	assert.Equal(t, "user-2", list2[0].UserID)
+}

@@ -448,6 +448,20 @@ func (e *QuizEngine) ResumeSession(ctx context.Context, userID, sessionID string
 	return session, nil
 }
 
+// FindResumableSession finds the most recent in-progress quiz session for the
+// given user, or returns nil if no such session exists.
+func (e *QuizEngine) FindResumableSession(ctx context.Context, userID string) (*model.QuizSession, error) {
+	sessions, err := e.repo.ListQuizSessions(ctx, userID, model.QuizSessionStatusInProgress)
+	if err != nil {
+		return nil, fmt.Errorf("FindResumableSession: listing sessions: %w", err)
+	}
+	if len(sessions) == 0 {
+		return nil, nil
+	}
+	// Sessions are ordered by started_at DESC, so the first is the most recent.
+	return &sessions[0], nil
+}
+
 // AbandonSession marks a session as abandoned.
 func (e *QuizEngine) AbandonSession(ctx context.Context, userID, sessionID string) error {
 	session, err := e.repo.GetQuizSession(ctx, userID, sessionID)
