@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -97,6 +98,43 @@ func (m *MockRepository) UpdateQuestionState(_ context.Context, state model.Ques
 	key := questionStateKey(state.UserID, state.PackID, state.QuestionID)
 	m.QuestionStates[key] = state
 	return nil
+}
+
+// ListQuestionStates returns question states matching the filter.
+// PackID is required. TopicID filtering is not applied here (v1 simplification).
+func (m *MockRepository) ListQuestionStates(_ context.Context, userID string, filter model.QuestionHistoryFilter) ([]model.QuestionState, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	var result []model.QuestionState
+	for _, s := range m.QuestionStates {
+		if s.UserID != userID || s.PackID != filter.PackID {
+			continue
+		}
+		if filter.Result != "" && s.LastResult != filter.Result {
+			continue
+		}
+		result = append(result, s)
+	}
+
+	// Sort the results deterministically.
+	sort.Slice(result, func(i, j int) bool {
+		var less bool
+		switch filter.SortBy {
+		case "next_review":
+			less = result[i].NextReviewAt.Before(result[j].NextReviewAt)
+		case "ease_factor":
+			less = result[i].EaseFactor < result[j].EaseFactor
+		default: // "last_reviewed"
+			less = result[i].LastReviewedAt.Before(result[j].LastReviewedAt)
+		}
+		if filter.SortDesc {
+			return !less
+		}
+		return less
+	})
+
+	return result, nil
 }
 
 // --- Topic stats ---

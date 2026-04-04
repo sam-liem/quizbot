@@ -246,6 +246,92 @@ func (d *DB) UpdateQuestionState(ctx context.Context, state model.QuestionState)
 	return nil
 }
 
+// ListQuestionStates returns question states for a user filtered and sorted
+// according to filter. PackID is required. Result filtering and sorting are
+// applied in SQL; TopicID filtering is not implemented here (v1 simplification:
+// question_states has no topic_id column — callers must cross-reference pack
+// data themselves).
+func (d *DB) ListQuestionStates(ctx context.Context, userID string, filter model.QuestionHistoryFilter) ([]model.QuestionState, error) {
+	query := `
+		SELECT user_id, pack_id, question_id, ease_factor, interval_days,
+		       repetition_count, next_review_at, last_result, last_reviewed_at
+		FROM question_states
+		WHERE user_id = ? AND pack_id = ?`
+	args := []any{userID, filter.PackID}
+
+	if filter.Result != "" {
+		query += " AND last_result = ?"
+		args = append(args, string(filter.Result))
+	}
+
+	// Determine ORDER BY column. Validated against an allow-list to prevent
+	// SQL injection from caller-supplied SortBy strings.
+	var orderCol string
+	switch filter.SortBy {
+	case "next_review":
+		orderCol = "next_review_at"
+	case "ease_factor":
+		orderCol = "ease_factor"
+	default:
+		orderCol = "last_reviewed_at"
+	}
+
+	direction := "ASC"
+	if filter.SortDesc {
+		direction = "DESC"
+	}
+	query += " ORDER BY " + orderCol + " " + direction
+
+	rows, err := d.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("listing question states: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var result []model.QuestionState
+	for rows.Next() {
+		var (
+			uid             string
+			packID          string
+			questionID      string
+			easeFactor      float64
+			intervalDays    float64
+			repetitionCount int
+			nextReviewAt    string
+			lastResult      string
+			lastReviewedAt  string
+		)
+		if err = rows.Scan(&uid, &packID, &questionID,
+			&easeFactor, &intervalDays, &repetitionCount,
+			&nextReviewAt, &lastResult, &lastReviewedAt); err != nil {
+			return nil, fmt.Errorf("scanning question state row: %w", err)
+		}
+		nextReview, err := parseTime(nextReviewAt)
+		if err != nil {
+			return nil, fmt.Errorf("parsing next_review_at: %w", err)
+		}
+		lastReview, err := parseTime(lastReviewedAt)
+		if err != nil {
+			return nil, fmt.Errorf("parsing last_reviewed_at: %w", err)
+		}
+		result = append(result, model.QuestionState{
+			UserID:          uid,
+			PackID:          packID,
+			QuestionID:      questionID,
+			EaseFactor:      easeFactor,
+			IntervalDays:    intervalDays,
+			RepetitionCount: repetitionCount,
+			NextReviewAt:    nextReview,
+			LastResult:      model.AnswerResult(lastResult),
+			LastReviewedAt:  lastReview,
+		})
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating question state rows: %w", err)
+	}
+	return result, nil
+}
+
 // ---- Topic Stats ----
 
 func (d *DB) GetTopicStats(ctx context.Context, userID, packID, topicID string) (*model.TopicStats, error) {
