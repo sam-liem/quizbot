@@ -5,14 +5,54 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/sam-liem/quizbot/internal/importer"
 )
+
+// validateImportPath checks the given path for path traversal attempts and
+// confirms it refers to a regular file (not a symlink or directory).
+func validateImportPath(filePath string) error {
+	abs, err := filepath.Abs(filePath)
+	if err != nil {
+		return fmt.Errorf("resolving path: %w", err)
+	}
+
+	// Detect ".." components in the cleaned path. filepath.Clean collapses
+	// redundant separators and dots but preserves ".." components that are
+	// needed to resolve the path. Rejecting any ".." in the cleaned input
+	// catches paths like "../../etc/passwd".
+	cleaned := filepath.Clean(filePath)
+	for _, part := range strings.Split(cleaned, string(filepath.Separator)) {
+		if part == ".." {
+			return fmt.Errorf("path traversal detected: path must not contain '..' components")
+		}
+	}
+
+	info, err := os.Lstat(abs)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("file not found: %s", filePath)
+		}
+		return fmt.Errorf("stat file: %w", err)
+	}
+
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("path traversal detected: %s is not a regular file", filePath)
+	}
+
+	return nil
+}
 
 // RunImport imports a quiz pack from a file. If format is empty, it is
 // auto-detected from the file extension.
 func (a *App) RunImport(filePath, format string, w io.Writer) error {
 	ctx := context.Background()
+
+	if err := validateImportPath(filePath); err != nil {
+		return err
+	}
 
 	var detectedFormat importer.Format
 	var err error
