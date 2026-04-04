@@ -642,3 +642,93 @@ func TestListQuestionStates_IsolatedByUser(t *testing.T) {
 	assert.Len(t, list2, 1)
 	assert.Equal(t, "user-2", list2[0].UserID)
 }
+
+// ---- ListQuizSessions tests ----
+
+func TestListQuizSessions(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	qs1 := model.QuizSession{
+		ID: "qs-1", UserID: "user-1", PackID: "pack-1",
+		Mode: model.SessionModeMock, QuestionIDs: []string{"q-1", "q-2"},
+		CurrentIndex: 0, Answers: map[string]int{},
+		StartedAt: now.Add(-2 * time.Hour), TimeLimitSec: 2700,
+		Status: model.QuizSessionStatusInProgress,
+	}
+	qs2 := model.QuizSession{
+		ID: "qs-2", UserID: "user-1", PackID: "pack-1",
+		Mode: model.SessionModeMock, QuestionIDs: []string{"q-1", "q-2"},
+		CurrentIndex: 2, Answers: map[string]int{"q-1": 0, "q-2": 1},
+		StartedAt: now.Add(-1 * time.Hour), TimeLimitSec: 2700,
+		Status: model.QuizSessionStatusCompleted,
+	}
+	qs3 := model.QuizSession{
+		ID: "qs-3", UserID: "user-1", PackID: "pack-1",
+		Mode: model.SessionModePractice, QuestionIDs: []string{"q-1"},
+		CurrentIndex: 0, Answers: map[string]int{},
+		StartedAt: now.Add(-30 * time.Minute), TimeLimitSec: 0,
+		Status: model.QuizSessionStatusInProgress,
+	}
+
+	require.NoError(t, db.SaveQuizSession(ctx, qs1))
+	require.NoError(t, db.SaveQuizSession(ctx, qs2))
+	require.NoError(t, db.SaveQuizSession(ctx, qs3))
+
+	inProgress, err := db.ListQuizSessions(ctx, "user-1", model.QuizSessionStatusInProgress)
+	require.NoError(t, err)
+	assert.Len(t, inProgress, 2)
+	assert.Equal(t, "qs-3", inProgress[0].ID)
+	assert.Equal(t, "qs-1", inProgress[1].ID)
+
+	completed, err := db.ListQuizSessions(ctx, "user-1", model.QuizSessionStatusCompleted)
+	require.NoError(t, err)
+	assert.Len(t, completed, 1)
+	assert.Equal(t, "qs-2", completed[0].ID)
+}
+
+func TestListQuizSessions_EmptyResult(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	sessions, err := db.ListQuizSessions(ctx, "user-1", model.QuizSessionStatusInProgress)
+	require.NoError(t, err)
+	assert.Empty(t, sessions)
+}
+
+func TestListQuizSessions_UserIsolation(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	qs1 := model.QuizSession{
+		ID: "qs-u1", UserID: "user-1", PackID: "pack-1",
+		Mode: model.SessionModeMock, QuestionIDs: []string{"q-1"},
+		CurrentIndex: 0, Answers: map[string]int{},
+		StartedAt: now, TimeLimitSec: 2700,
+		Status: model.QuizSessionStatusInProgress,
+	}
+	qs2 := model.QuizSession{
+		ID: "qs-u2", UserID: "user-2", PackID: "pack-1",
+		Mode: model.SessionModeMock, QuestionIDs: []string{"q-1"},
+		CurrentIndex: 0, Answers: map[string]int{},
+		StartedAt: now, TimeLimitSec: 2700,
+		Status: model.QuizSessionStatusInProgress,
+	}
+
+	require.NoError(t, db.SaveQuizSession(ctx, qs1))
+	require.NoError(t, db.SaveQuizSession(ctx, qs2))
+
+	list1, err := db.ListQuizSessions(ctx, "user-1", model.QuizSessionStatusInProgress)
+	require.NoError(t, err)
+	require.Len(t, list1, 1)
+	assert.Equal(t, "user-1", list1[0].UserID)
+
+	list2, err := db.ListQuizSessions(ctx, "user-2", model.QuizSessionStatusInProgress)
+	require.NoError(t, err)
+	require.Len(t, list2, 1)
+	assert.Equal(t, "user-2", list2[0].UserID)
+}

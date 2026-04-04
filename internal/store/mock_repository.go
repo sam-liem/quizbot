@@ -222,6 +222,28 @@ func (m *MockRepository) GetQuizSession(_ context.Context, userID, sessionID str
 	return &session, nil
 }
 
+// ListQuizSessions returns all quiz sessions for the given user filtered by status,
+// ordered by StartedAt descending (most recent first).
+func (m *MockRepository) ListQuizSessions(_ context.Context, userID string, status model.QuizSessionStatus) ([]model.QuizSession, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var results []model.QuizSession
+	for key, s := range m.QuizSessions {
+		// Keys are "userID|sessionID"; filter by userID prefix.
+		if !strings.HasPrefix(key, userID+"|") {
+			continue
+		}
+		if s.Status == status {
+			results = append(results, s)
+		}
+	}
+	// Sort by StartedAt descending (most recent first).
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].StartedAt.After(results[j].StartedAt)
+	})
+	return results, nil
+}
+
 // --- User preferences ---
 
 func (m *MockRepository) GetPreferences(_ context.Context, userID string) (*model.UserPreferences, error) {

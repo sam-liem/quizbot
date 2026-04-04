@@ -31,6 +31,7 @@ type Repository interface {
 	// Quiz sessions (active quiz state)
 	SaveQuizSession(ctx context.Context, session model.QuizSession) error
 	GetQuizSession(ctx context.Context, userID, sessionID string) (*model.QuizSession, error)
+	ListQuizSessions(ctx context.Context, userID string, status model.QuizSessionStatus) ([]model.QuizSession, error)
 
 	// User preferences
 	GetPreferences(ctx context.Context, userID string) (*model.UserPreferences, error)

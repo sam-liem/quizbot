@@ -29,13 +29,24 @@ func (a *App) RunQuizStart(packID string, mode model.SessionMode, count int, top
 	return a.runInteractiveQuiz(ctx, session.ID, r, w)
 }
 
-// RunQuizResume resumes an in-progress quiz session.
-// Since the repository interface doesn't expose a "list sessions" method,
-// resume is not yet supported.
+// RunQuizResume finds the most recent in-progress quiz session and resumes it.
+// If no in-progress session exists, it reports that to the user.
 func (a *App) RunQuizResume(r io.Reader, w io.Writer) error {
-	_ = r
-	_ = w
-	return fmt.Errorf("no in-progress session found (use 'quiz start' to begin a new quiz)")
+	ctx := context.Background()
+
+	session, err := a.engine.FindResumableSession(ctx, a.userID)
+	if err != nil {
+		return fmt.Errorf("finding resumable session: %w", err)
+	}
+	if session == nil {
+		_, _ = fmt.Fprintln(w, "No in-progress session found. Use 'quiz start' to begin a new quiz.")
+		return nil
+	}
+
+	_, _ = fmt.Fprintf(w, "Resuming session %s (question %d/%d)...\n",
+		session.ID, session.CurrentIndex+1, len(session.QuestionIDs))
+
+	return a.runInteractiveQuiz(ctx, session.ID, r, w)
 }
 
 // runInteractiveQuiz drives the question-answer loop for a quiz session.

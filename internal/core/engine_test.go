@@ -470,3 +470,66 @@ func TestPracticeMode_SpacedRepetitionPriority(t *testing.T) {
 	// q003 must appear first (most overdue).
 	assert.Equal(t, "q003", session.QuestionIDs[0], "most overdue question should appear first")
 }
+
+// --- FindResumableSession ---
+
+func TestFindResumableSession(t *testing.T) {
+	engine, _ := setupEngine(t)
+	ctx := context.Background()
+
+	// Start two quiz sessions for the same user.
+	session1, err := engine.StartQuiz(ctx, testUserID, testPackID, model.SessionModeMock, core.QuizOptions{})
+	require.NoError(t, err)
+
+	// Small sleep to ensure different timestamps.
+	time.Sleep(2 * time.Millisecond)
+
+	session2, err := engine.StartQuiz(ctx, testUserID, testPackID, model.SessionModeMock, core.QuizOptions{})
+	require.NoError(t, err)
+
+	// FindResumableSession should return the most recent in_progress session.
+	found, err := engine.FindResumableSession(ctx, testUserID)
+	require.NoError(t, err)
+	require.NotNil(t, found)
+	assert.Equal(t, session2.ID, found.ID, "should return the most recently started session")
+	assert.Equal(t, model.QuizSessionStatusInProgress, found.Status)
+
+	_ = session1 // keep reference to suppress unused variable warning
+}
+
+func TestFindResumableSession_None(t *testing.T) {
+	engine, _ := setupEngine(t)
+	ctx := context.Background()
+
+	// No sessions exist for this user.
+	found, err := engine.FindResumableSession(ctx, testUserID)
+	require.NoError(t, err)
+	assert.Nil(t, found, "should return nil when no in-progress sessions exist")
+}
+
+func TestFindResumableSession_CompletedSessionIgnored(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+
+	// Start a session and complete it.
+	session, err := engine.StartQuiz(ctx, testUserID, testPackID, model.SessionModeMock, core.QuizOptions{})
+	require.NoError(t, err)
+
+	pack, err := repo.GetQuizPack(ctx, testPackID)
+	require.NoError(t, err)
+	questionMap := make(map[string]model.Question)
+	for _, q := range pack.Questions {
+		questionMap[q.ID] = q
+	}
+
+	for _, qID := range session.QuestionIDs {
+		q := questionMap[qID]
+		_, err = engine.SubmitAnswer(ctx, testUserID, session.ID, qID, q.CorrectIndex)
+		require.NoError(t, err)
+	}
+
+	// Session is now completed; FindResumableSession should return nil.
+	found, err := engine.FindResumableSession(ctx, testUserID)
+	require.NoError(t, err)
+	assert.Nil(t, found, "completed sessions should not be resumable")
+}
